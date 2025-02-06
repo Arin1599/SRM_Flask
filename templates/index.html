@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SRM mailer</title>
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='css/style.css') }}"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/default.min.css"
+    />
+  </head>
+  <body>
+    <div class="chat-container">
+      <div class="chat-header">
+        <div class="cody-info">
+          <div class="cody-avatar">S</div>
+          <span>SRM mailer</span>
+        </div>
+      </div>
+
+      <div class="chat-messages" id="chatMessages">
+        <!-- Messages will be dynamically added here -->
+      </div>
+
+      <div class="chat-input-container">
+        <textarea
+          class="chat-input"
+          placeholder="Ask anything financial about Tata Steel..."
+          rows="1"
+          id="messageInput"
+        ></textarea>
+        <button class="send-button">
+          <svg viewBox="0 0 24 24" width="24" height="24">
+            <path
+              fill="currentColor"
+              d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"
+            />
+          </svg>
+        </button>
+      </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+
+    <script>
+      document.addEventListener("DOMContentLoaded", function () {
+        const sendButton = document.querySelector(".send-button");
+        const messageInput = document.getElementById("messageInput");
+
+        // Configure marked options for better security and formatting
+        marked.setOptions({
+          breaks: true,
+          gfm: true,
+          headerIds: false,
+          mangle: false,
+        });
+
+        function addMessage(sender, content) {
+          const chatMessages = document.getElementById("chatMessages");
+          const messageDiv = document.createElement("div");
+          messageDiv.className = `message ${sender}-message`;
+
+          if (sender === "bot") {
+            messageDiv.innerHTML = marked.parse(content);
+            // Add syntax highlighting to code blocks
+            document.querySelectorAll("pre code").forEach((block) => {
+              hljs.highlightBlock(block);
+            });
+          } else {
+            messageDiv.textContent = content;
+          }
+
+          chatMessages.appendChild(messageDiv);
+          chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function showTypingIndicator() {
+          const chatMessages = document.getElementById("chatMessages");
+          const indicator = document.createElement("div");
+          indicator.className = "typing-indicator";
+          indicator.innerHTML =
+            '<span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span>';
+          chatMessages.appendChild(indicator);
+          chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function hideTypingIndicator() {
+          const indicator = document.querySelector(".typing-indicator");
+          if (indicator) indicator.remove();
+        }
+
+        async function sendMessage() {
+          const message = messageInput.value.trim();
+          if (!message) return;
+
+          addMessage("user", message);
+          messageInput.value = "";
+          showTypingIndicator();
+
+          try {
+            const response = await fetch("/chat", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ message }),
+            });
+
+            const data = await response.json();
+            hideTypingIndicator();
+            addMessage("bot", data.response);
+          } catch (error) {
+            hideTypingIndicator();
+            addMessage(
+              "bot",
+              "**Error:** Unable to process your request at this time."
+            );
+          }
+        }
+
+        // Event Listeners
+        sendButton.addEventListener("click", sendMessage);
+
+        messageInput.addEventListener("keypress", function (e) {
+          if (e.key === "Enter" && !e.shiftKey) {
+            e.preventDefault();
+            sendMessage();
+          }
+        });
+      });
+    </script>
+  </body>
+</html>
